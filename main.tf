@@ -142,13 +142,13 @@ resource "aws_route53_record" "alias" {
 resource "aws_s3_bucket" "redirect" {
   count = "${length(var.redirects)}"
 
-  bucket = "${element(var.redirects, count.index)}"
+  bucket = "${lookup(var.redirects[count.index], "name")}"
 
   website {
     redirect_all_requests_to = "https://${var.domain_name}"
   }
 
-  tags = "${merge(map("Name", "${element(var.redirects, count.index)}-redirect"), var.tags)}"
+  tags = "${merge(map("Name", "${lookup(var.redirects[count.index], "name")}-redirect"), var.tags)}"
 }
 
 resource "aws_cloudfront_distribution" "redirect" {
@@ -156,7 +156,7 @@ resource "aws_cloudfront_distribution" "redirect" {
 
   origin {
     domain_name = "${element(aws_s3_bucket.redirect.*.website_endpoint, count.index)}"
-    origin_id   = "cloudfront-distribution-origin-${element(var.redirects, count.index)}.s3.amazonaws.com"
+    origin_id   = "cloudfront-distribution-origin-${lookup(var.redirects[count.index], "name")}.s3.amazonaws.com"
 
     custom_origin_config {
       http_port              = 80
@@ -166,13 +166,13 @@ resource "aws_cloudfront_distribution" "redirect" {
     }
   }
 
-  comment         = "CDN for ${element(var.redirects, count.index)} S3 Bucket (redirect)"
+  comment         = "CDN for ${lookup(var.redirects[count.index], "name")} S3 Bucket (redirect)"
   enabled         = true
   is_ipv6_enabled = true
-  aliases         = ["${element(var.redirects, count.index)}"]
+  aliases         = ["${lookup(var.redirects[count.index], "name")}"]
 
   default_cache_behavior {
-    target_origin_id = "cloudfront-distribution-origin-${element(var.redirects, count.index)}.s3.amazonaws.com"
+    target_origin_id = "cloudfront-distribution-origin-${lookup(var.redirects[count.index], "name")}.s3.amazonaws.com"
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
 
@@ -194,21 +194,21 @@ resource "aws_cloudfront_distribution" "redirect" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = "${var.cert_arn}"
+    acm_certificate_arn      = "${lookup(var.redirects[count.index], "cert_arn")}"
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2018"
   }
 
-  tags = "${merge(map("Name", "${element(var.redirects, count.index)}-cdn_redirect"), var.tags)}"
+  tags = "${merge(map("Name", "${lookup(var.redirects[count.index], "name")}-cdn_redirect"), var.tags)}"
 }
 
 resource "aws_route53_record" "redirect" {
-  count = "${length(var.zone_id) > 0 ? length(var.redirects) : 0}"
+  count = "${length(var.redirects)}"
 
-  zone_id = "${var.zone_id}"
+  zone_id = "${lookup(var.redirects[count.index], "zone_id")}}"
 
   # Work-around (see: https://github.com/hashicorp/terraform/issues/11210)
-  name = "${length(var.redirects) > 0 ? element(concat(var.redirects, list("")), count.index): ""}"
+  name = "${lookup(var.redirects[count.index], "name")}"
   type = "A"
 
   alias {
