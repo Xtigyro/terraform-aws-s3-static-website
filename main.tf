@@ -140,7 +140,7 @@ resource "aws_route53_record" "alias" {
 }
 
 resource "aws_s3_bucket" "redirect" {
-  count = "${length(var.redirects)}"
+  count = "${var.number_redirects}"
 
   bucket = "${lookup(var.redirects[count.index], "name")}"
 
@@ -152,7 +152,7 @@ resource "aws_s3_bucket" "redirect" {
 }
 
 resource "aws_cloudfront_distribution" "redirect" {
-  count = "${length(var.redirects)}"
+  count = "${var.number_redirects}"
 
   origin {
     domain_name = "${element(aws_s3_bucket.redirect.*.website_endpoint, count.index)}"
@@ -203,7 +203,7 @@ resource "aws_cloudfront_distribution" "redirect" {
 }
 
 resource "aws_route53_record" "redirect" {
-  count = "${length(var.redirects)}"
+  count = "${var.number_redirects}"
 
   zone_id = "${lookup(var.redirects[count.index], "zone_id")}}"
 

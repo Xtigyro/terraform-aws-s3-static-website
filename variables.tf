@@ -18,6 +18,11 @@ variable "redirects" {
   default     = []
 }
 
+variable "number_redirects" {
+  description = "Number of redirects"
+  default     = 0
+}
+
 variable "secret" {
   description = "A secret string between CloudFront and S3 to control access"
   type        = "string"
