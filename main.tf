@@ -205,7 +205,7 @@ resource "aws_cloudfront_distribution" "redirect" {
 resource "aws_route53_record" "redirect" {
   count = "${var.number_redirects}"
 
-  zone_id = "${lookup(var.redirects[count.index], "zone_id")}}"
+  zone_id = "${lookup(var.redirects[count.index], "zone_id")}"
 
   # Work-around (see: https://github.com/hashicorp/terraform/issues/11210)
   name = "${lookup(var.redirects[count.index], "name")}"
