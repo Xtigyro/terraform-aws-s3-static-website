@@ -15,6 +15,7 @@ This module allows for [Hosting a Static Website on Amazon S3](https://docs.aws.
 It requires (for now?) that the following have been setup outside this module:
 
 - SSL Certificate
+- Route 53 Hosted Zone
 
 ## Usage
 
