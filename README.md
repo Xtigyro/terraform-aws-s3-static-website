@@ -21,7 +21,7 @@ It requires (for now?) that the following have been setup outside this module:
 
 ```HCL
 module "s3-static-website" {
-  source  = "conortm/s3-static-website/aws"
+  source  = "git::https://github.com/Xtigyro/terraform-aws-s3-static-website.git?ref=master"
 
   domain_name       = "www.my-aws-s3-static-website.com"
   redirects         = ["my-aws-s3-static-website.com"]
