@@ -38,3 +38,7 @@ variable "zone_id" {
   type        = string
 }
 
+variable "use_route53_zone" {
+  description = "Use or not Route 53 Hosted Zone"
+  type        = bool
+}

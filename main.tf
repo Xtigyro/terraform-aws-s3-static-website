@@ -137,7 +137,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 }
 
 resource "aws_route53_record" "alias" {
-  count = length(var.zone_id) > 0 ? 1 : 0
+  count = var.use_route53_zone ? 1 : 0
 
   zone_id = var.zone_id
   name    = var.domain_name
@@ -252,4 +252,3 @@ resource "aws_route53_record" "redirect" {
     evaluate_target_health = false
   }
 }
-
