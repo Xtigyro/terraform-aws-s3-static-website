@@ -15,7 +15,6 @@ This module allows for [Hosting a Static Website on Amazon S3](https://docs.aws.
 It requires (for now?) that the following have been setup outside this module:
 
 - SSL Certificate
-- Route 53 Hosted Zone
 
 ## Usage
 
@@ -23,11 +22,12 @@ It requires (for now?) that the following have been setup outside this module:
 module "s3-static-website" {
   source  = "conortm/s3-static-website/aws"
 
-  domain_name = "www.my-aws-s3-static-website.com"
-  redirects   = ["my-aws-s3-static-website.com"]
-  secret      = "SOME_SECRET_MANAGED_OUTSIDE_OF_VERSION_CONTROL"
-  cert_arn    = "ARN_OF_SSL_CERTIFICATE"
-  zone_id     = "HOSTED_ZONE_ID"
+  domain_name       = "www.my-aws-s3-static-website.com"
+  redirects         = ["my-aws-s3-static-website.com"]
+  secret            = "SOME_SECRET_MANAGED_OUTSIDE_OF_VERSION_CONTROL"
+  cert_arn          = "ARN_OF_SSL_CERTIFICATE"
+  use_route53_zone  = true
+  zone_id           = "HOSTED_ZONE_ID"
 
   tags = {
     Foo = "Bar"
@@ -46,6 +46,7 @@ module "s3-static-website" {
 | secret | A secret string between CloudFront and S3 to control access | string | - | yes |
 | tags | A mapping of tags to assign to each resource | map | `<map>` | no |
 | zone_id | ID of the Route 53 Hosted Zone in which to create an alias record set | string | - | yes |
+| use_route53_zone | Use or not Route 53 Hosted Zone | string | - | yes |
 
 ## Outputs
 
