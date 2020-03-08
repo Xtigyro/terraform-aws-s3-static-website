@@ -1,11 +1,11 @@
 variable "cert_arn" {
   description = "ARN of the SSL Certificate to use for the Cloudfront Distribution"
-  type        = "string"
+  type        = string
 }
 
 variable "domain_name" {
   description = "Domain name for the website (i.e. www.example.com)"
-  type        = "string"
+  type        = string
 }
 
 variable "public_dir" {
@@ -25,7 +25,7 @@ variable "number_redirects" {
 
 variable "secret" {
   description = "A secret string between CloudFront and S3 to control access"
-  type        = "string"
+  type        = string
 }
 
 variable "tags" {
@@ -35,5 +35,6 @@ variable "tags" {
 
 variable "zone_id" {
   description = "ID of the Route 53 Hosted Zone in which to create an alias record"
-  type        = "string"
+  type        = string
 }
+

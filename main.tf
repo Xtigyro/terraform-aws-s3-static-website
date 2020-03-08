@@ -1,5 +1,5 @@
 locals {
-  public_dir_with_leading_slash = "${length(var.public_dir) > 0 ? "/${var.public_dir}" : ""}"
+  public_dir_with_leading_slash = length(var.public_dir) > 0 ? "/${var.public_dir}" : ""
 
   static_website_routing_rules = <<EOF
 [{
@@ -14,19 +14,25 @@ locals {
     }
 }]
 EOF
+
 }
 
 resource "aws_s3_bucket" "static_website" {
-  bucket = "${var.domain_name}"
+  bucket = var.domain_name
 
   website {
     index_document = "index.html"
     error_document = "error.html"
 
-    routing_rules = "${length(var.public_dir) > 0 ? local.static_website_routing_rules : ""}"
+    routing_rules = length(var.public_dir) > 0 ? local.static_website_routing_rules : ""
   }
 
-  tags = "${merge(map("Name", "${var.domain_name}-static_website"), var.tags)}"
+  tags = merge(
+    {
+      "Name" = "${var.domain_name}-static_website"
+    },
+    var.tags,
+  )
 }
 
 data "aws_iam_policy_document" "static_website_read_with_secret" {
@@ -43,14 +49,14 @@ data "aws_iam_policy_document" "static_website_read_with_secret" {
     condition {
       test     = "StringEquals"
       variable = "aws:UserAgent"
-      values   = ["${var.secret}"]
+      values   = [var.secret]
     }
   }
 }
 
 resource "aws_s3_bucket_policy" "static_website_read_with_secret" {
-  bucket = "${aws_s3_bucket.static_website.id}"
-  policy = "${data.aws_iam_policy_document.static_website_read_with_secret.json}"
+  bucket = aws_s3_bucket.static_website.id
+  policy = data.aws_iam_policy_document.static_website_read_with_secret.json
 }
 
 locals {
@@ -59,9 +65,9 @@ locals {
 
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
-    domain_name = "${aws_s3_bucket.static_website.website_endpoint}"
-    origin_path = "${local.public_dir_with_leading_slash}"
-    origin_id   = "${local.s3_origin_id}"
+    domain_name = aws_s3_bucket.static_website.website_endpoint
+    origin_path = local.public_dir_with_leading_slash
+    origin_id   = local.s3_origin_id
 
     custom_origin_config {
       http_port              = 80
@@ -72,7 +78,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 
     custom_header {
       name  = "User-Agent"
-      value = "${var.secret}"
+      value = var.secret
     }
   }
 
@@ -80,7 +86,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  aliases             = ["${var.domain_name}"]
+  aliases             = [var.domain_name]
 
   custom_error_response {
     error_code         = 403
@@ -95,7 +101,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   default_cache_behavior {
-    target_origin_id = "${local.s3_origin_id}"
+    target_origin_id = local.s3_origin_id
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
 
@@ -117,46 +123,56 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = "${var.cert_arn}"
+    acm_certificate_arn      = var.cert_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2018"
   }
 
-  tags = "${merge(map("Name", "${var.domain_name}-cdn"), var.tags)}"
+  tags = merge(
+    {
+      "Name" = "${var.domain_name}-cdn"
+    },
+    var.tags,
+  )
 }
 
 resource "aws_route53_record" "alias" {
-  count = "${length(var.zone_id) > 0 ? 1 : 0}"
+  count = length(var.zone_id) > 0 ? 1 : 0
 
-  zone_id = "${var.zone_id}"
-  name    = "${var.domain_name}"
+  zone_id = var.zone_id
+  name    = var.domain_name
   type    = "A"
 
   alias {
-    name                   = "${aws_cloudfront_distribution.cdn.domain_name}"
-    zone_id                = "${aws_cloudfront_distribution.cdn.hosted_zone_id}"
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 resource "aws_s3_bucket" "redirect" {
-  count = "${var.number_redirects}"
+  count = var.number_redirects
 
-  bucket = "${lookup(var.redirects[count.index], "name")}"
+  bucket = var.redirects[count.index]["name"]
 
   website {
     redirect_all_requests_to = "https://${var.domain_name}"
   }
 
-  tags = "${merge(map("Name", "${lookup(var.redirects[count.index], "name")}-redirect"), var.tags)}"
+  tags = merge(
+    {
+      "Name" = "${var.redirects[count.index]["name"]}-redirect"
+    },
+    var.tags,
+  )
 }
 
 resource "aws_cloudfront_distribution" "redirect" {
-  count = "${var.number_redirects}"
+  count = var.number_redirects
 
   origin {
-    domain_name = "${element(aws_s3_bucket.redirect.*.website_endpoint, count.index)}"
-    origin_id   = "cloudfront-distribution-origin-${lookup(var.redirects[count.index], "name")}.s3.amazonaws.com"
+    domain_name = element(aws_s3_bucket.redirect.*.website_endpoint, count.index)
+    origin_id   = "cloudfront-distribution-origin-${var.redirects[count.index]["name"]}.s3.amazonaws.com"
 
     custom_origin_config {
       http_port              = 80
@@ -166,13 +182,21 @@ resource "aws_cloudfront_distribution" "redirect" {
     }
   }
 
-  comment         = "CDN for ${lookup(var.redirects[count.index], "name")} S3 Bucket (redirect)"
+  comment         = "CDN for ${var.redirects[count.index]["name"]} S3 Bucket (redirect)"
   enabled         = true
   is_ipv6_enabled = true
-  aliases         = ["${lookup(var.redirects[count.index], "name")}"]
+  # TF-UPGRADE-TODO: In Terraform v0.10 and earlier, it was sometimes necessary to
+  # force an interpolation expression to be interpreted as a list by wrapping it
+  # in an extra set of list brackets. That form was supported for compatibility in
+  # v0.11, but is no longer supported in Terraform v0.12.
+  #
+  # If the expression in the following list itself returns a list, remove the
+  # brackets to avoid interpretation as a list of lists. If the expression
+  # returns a single list item then leave it as-is and remove this TODO comment.
+  aliases = [var.redirects[count.index]["name"]]
 
   default_cache_behavior {
-    target_origin_id = "cloudfront-distribution-origin-${lookup(var.redirects[count.index], "name")}.s3.amazonaws.com"
+    target_origin_id = "cloudfront-distribution-origin-${var.redirects[count.index]["name"]}.s3.amazonaws.com"
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
 
@@ -194,26 +218,38 @@ resource "aws_cloudfront_distribution" "redirect" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = "${lookup(var.redirects[count.index], "cert_arn")}"
+    acm_certificate_arn      = var.redirects[count.index]["cert_arn"]
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2018"
   }
 
-  tags = "${merge(map("Name", "${lookup(var.redirects[count.index], "name")}-cdn_redirect"), var.tags)}"
+  tags = merge(
+    {
+      "Name" = "${var.redirects[count.index]["name"]}-cdn_redirect"
+    },
+    var.tags,
+  )
 }
 
 resource "aws_route53_record" "redirect" {
-  count = "${var.number_redirects}"
+  count = var.number_redirects
 
-  zone_id = "${lookup(var.redirects[count.index], "zone_id")}"
+  zone_id = var.redirects[count.index]["zone_id"]
 
   # Work-around (see: https://github.com/hashicorp/terraform/issues/11210)
-  name = "${lookup(var.redirects[count.index], "name")}"
+  name = var.redirects[count.index]["name"]
   type = "A"
 
   alias {
-    name                   = "${element(aws_cloudfront_distribution.redirect.*.domain_name, count.index)}"
-    zone_id                = "${element(aws_cloudfront_distribution.redirect.*.hosted_zone_id, count.index)}"
+    name = element(
+      aws_cloudfront_distribution.redirect.*.domain_name,
+      count.index,
+    )
+    zone_id = element(
+      aws_cloudfront_distribution.redirect.*.hosted_zone_id,
+      count.index,
+    )
     evaluate_target_health = false
   }
 }
+
